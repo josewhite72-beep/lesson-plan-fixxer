@@ -284,7 +284,7 @@
 <!-- LIBRARIES -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
@@ -650,10 +650,13 @@ function setGenProgress(pct) {
 
 // ── WORD EXPORT ───────────────────────────────────────────────────────────
 async function exportWord() {
+  // docx v7 UMD exposes as window.docx
+  const docxLib = window.docx;
+  if (!docxLib) { alert('Error: librería docx no cargada. Recarga la página.'); return; }
   const {
     Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
     AlignmentType, BorderStyle, WidthType, VerticalAlign, HeadingLevel, PageBreak
-  } = docx;
+  } = docxLib;
 
   const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
   const borders = { top: border, bottom: border, left: border, right: border };
@@ -861,68 +864,192 @@ async function exportWord() {
 async function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-  const margin = 15;
-  const pageW = 216;
-  const usable = pageW - margin * 2;
-  let y = margin;
+  const ml = 14, mr = 14, mt = 12;
+  const pageW = 216, pageH = 279;
+  const usable = pageW - ml - mr;
+  let y = mt;
 
-  function checkPage(needed = 10) {
-    if (y + needed > 270) { doc.addPage(); y = margin; }
+  function newPage() { doc.addPage(); y = mt; }
+  function checkY(need) { if (y + need > pageH - 12) newPage(); }
+
+  function hline(yy) {
+    doc.setDrawColor(0); doc.setLineWidth(0.2);
+    doc.line(ml, yy, ml + usable, yy);
   }
 
-  function drawText(text, x, yPos, opts = {}) {
-    doc.setFontSize(opts.size || 10);
+  function tableBox(x, yy, w, h) {
+    doc.setDrawColor(0); doc.setLineWidth(0.3);
+    doc.rect(x, yy, w, h);
+  }
+
+  function txt(text, x, yy, opts = {}) {
     doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
-    doc.text(String(text), x, yPos, { maxWidth: opts.maxWidth || usable });
+    doc.setFontSize(opts.size || 9);
+    const lines = doc.splitTextToSize(String(text || ''), opts.maxW || usable - 4);
+    lines.forEach((l, i) => {
+      doc.text(l, x, yy + i * (opts.lh || 4.5));
+    });
+    return lines.length * (opts.lh || 4.5);
   }
+
+  function centeredTxt(text, yy, opts = {}) {
+    doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+    doc.setFontSize(opts.size || 9);
+    doc.text(String(text), pageW / 2, yy, { align: 'center' });
+  }
+
+  // Parse lesson content into sections
+  function parseSections(text) {
+    const s = {};
+    let cur = 'header', buf = [];
+    text.split('\n').forEach(line => {
+      const m = line.match(/^(Stage \d+ - [^:|]+|Specific Objective|Learning Outcome|Homework|Formative Assessment|Teacher.s Comments)/i);
+      if (m) {
+        s[cur] = buf.join('\n').trim();
+        cur = m[1].trim();
+        buf = [line.replace(/^[^:]+:\s*/, '').replace(/\|\s*Estimated time[^\n]*/i, '').trim()];
+      } else { buf.push(line); }
+    });
+    s[cur] = buf.join('\n').trim();
+    return s;
+  }
+
+  const stageNames = [
+    'Stage 1 - Warm-up / Pre-task',
+    'Stage 2 - Presentation',
+    'Stage 3 - Preparation',
+    'Stage 4 - Performance',
+    'Stage 5 - Assessment / Post-task',
+    'Stage 6 - Reflection'
+  ];
+  const stageTimes = ['10 min','15 min','10 min','10 min','5 min','5 min'];
 
   generatedLessons.forEach((lesson, idx) => {
-    if (idx > 0) { doc.addPage(); y = margin; }
+    if (idx > 0) newPage();
 
-    // MEDUCA header
-    drawText('GOBIERNO NACIONAL', pageW/2, y, { bold: true, size: 9 });
-    doc.setTextColor(0);
-    doc.text('GOBIERNO NACIONAL', pageW/2, y, { align: 'center' });
-    y += 5;
-    doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text('MINISTERIO DE EDUCACION', pageW/2, y, { align: 'center' });
-    y += 5;
+    // ── MEDUCA header ──────────────────────────────────────────
+    centeredTxt('GOBIERNO NACIONAL', y, { bold: true, size: 9 }); y += 5;
+    centeredTxt('MINISTERIO DE EDUCACION', y, { bold: true, size: 9 }); y += 4.5;
+    centeredTxt('Direccion Nacional de Curriculo de Lengua Extranjera', y, { size: 8 }); y += 5;
+    centeredTxt('Lesson Planner - Theme # ___ - Lesson # ' + (idx + 1), y, { bold: true, size: 11 }); y += 7;
+
+    // ── Info table ─────────────────────────────────────────────
+    const infoH = 18;
+    tableBox(ml, y, usable, infoH);
+    // vertical dividers
+    doc.line(ml + usable*0.28, y, ml + usable*0.28, y + infoH);
+    doc.line(ml + usable*0.56, y, ml + usable*0.56, y + infoH);
+    doc.line(ml + usable*0.78, y, ml + usable*0.78, y + infoH);
+    hline(y + infoH/2);
+    // Row 1
+    txt('Lesson # ' + (idx+1), ml+2, y+5, { bold:true, size:8 });
+    txt('Skills focus: ' + lesson.skill, ml + usable*0.28+2, y+5, { bold:true, size:8 });
+    txt('Grade: ' + (planData.grade||'___'), ml + usable*0.56+2, y+5, { bold:true, size:8 });
+    txt('CEFR: ' + (planData.cefr||'___'), ml + usable*0.78+2, y+5, { bold:true, size:8 });
+    // Row 2
+    const col2W = usable*0.56 - 4;
+    const scenLines = doc.splitTextToSize('Scenario: ' + (planData.scenario||'___'), col2W);
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
-    doc.text('Direccion Nacional de Curriculo de Lengua Extranjera', pageW/2, y, { align: 'center' });
-    y += 7;
+    doc.text(scenLines, ml+2, y + infoH/2 + 5);
+    const themeLines = doc.splitTextToSize('Theme: ' + (planData.theme||'___'), usable*0.44 - 4);
+    doc.text(themeLines, ml + usable*0.56+2, y + infoH/2 + 5);
+    y += infoH + 4;
 
-    // Lesson title
-    doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text(`Lesson Planner - Lesson # ${idx+1} - ${lesson.skill}`, pageW/2, y, { align: 'center' });
+    // ── Objective & Learning Outcome table ─────────────────────
+    const sections = parseSections(lesson.content);
+    const objText = sections['Specific Objective'] || '______';
+    const loText  = sections['Learning Outcome']   || '______';
+
+    const labelW2 = usable * 0.25;
+    const valW2   = usable * 0.75;
+
+    // Objective row
+    checkY(14);
+    const objLines = doc.splitTextToSize(objText, valW2 - 4);
+    const objH = Math.max(10, objLines.length * 4.5 + 4);
+    tableBox(ml, y, usable, objH);
+    doc.line(ml + labelW2, y, ml + labelW2, y + objH);
+    txt('Specific Objective:', ml+2, y+6, { bold:true, size:8 });
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text(objLines, ml + labelW2 + 2, y + 6);
+    y += objH;
+
+    // Learning Outcome row
+    checkY(14);
+    const loLines = doc.splitTextToSize(loText, valW2 - 4);
+    const loH = Math.max(10, loLines.length * 4.5 + 4);
+    tableBox(ml, y, usable, loH);
+    doc.line(ml + labelW2, y, ml + labelW2, y + loH);
+    txt('Learning Outcome:', ml+2, y+6, { bold:true, size:8 });
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text(loLines, ml + labelW2 + 2, y + 6);
+    y += loH + 3;
+
+    // ── Stages table header ────────────────────────────────────
+    checkY(8);
+    const stageColW = usable * 0.32;
+    const contentColW = usable * 0.55;
+    const timeColW = usable * 0.13;
+    tableBox(ml, y, usable, 8);
+    doc.line(ml + stageColW, y, ml + stageColW, y + 8);
+    doc.line(ml + stageColW + contentColW, y, ml + stageColW + contentColW, y + 8);
+    txt('The Six Action-oriented Approach Lesson Stages', ml+2, y+5.5, { bold:true, size:7.5 });
+    centeredTxt('Estimated Time', y+5.5, { bold:true, size:7.5 });
+    // override center with proper position
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+    doc.text('Estimated Time', ml + stageColW + contentColW + timeColW/2, y+5.5, { align:'center' });
     y += 8;
 
-    // Info box
-    doc.setDrawColor(0); doc.setLineWidth(0.3);
-    doc.rect(margin, y, usable, 20);
-    doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text(`Lesson: ${idx+1}  |  Skill: ${lesson.skill}  |  Grade: ${planData.grade || '___'}  |  CEFR: ${planData.cefr || '___'}`, margin+2, y+6);
-    doc.text(`Scenario: ${planData.scenario || '___'}`, margin+2, y+12);
-    doc.text(`Theme: ${planData.theme || '___'}`, margin+2, y+18);
-    y += 24;
+    // ── Stage rows ─────────────────────────────────────────────
+    stageNames.forEach((stageName, si) => {
+      const key = Object.keys(sections).find(k => k.toLowerCase().includes('stage ' + (si+1)));
+      const stageContent = key ? sections[key] : '';
+      const cleanContent = stageContent.replace(/^[-•*]\s*/gm, '').trim();
 
-    // Lesson content
-    const lines = lesson.content.split('\n');
-    lines.forEach(line => {
-      if (!line.trim()) { y += 3; return; }
-      checkPage(8);
-      const isHeader = /^(Stage \d+|Specific Objective|Learning Outcome|Homework|Formative|Teacher)/i.test(line);
-      doc.setFont('helvetica', isHeader ? 'bold' : 'normal');
-      doc.setFontSize(isHeader ? 9 : 8.5);
-      const wrapped = doc.splitTextToSize(line.replace(/^[-•*]\s*/, ''), usable - 4);
-      wrapped.forEach(wl => {
-        checkPage(6);
-        doc.text(wl, margin + 2, y);
-        y += 5;
-      });
+      const contentLines = doc.splitTextToSize(cleanContent, contentColW - 4);
+      const rowH = Math.max(12, contentLines.length * 4.2 + 5);
+
+      checkY(rowH);
+      tableBox(ml, y, usable, rowH);
+      doc.line(ml + stageColW, y, ml + stageColW, y + rowH);
+      doc.line(ml + stageColW + contentColW, y, ml + stageColW + contentColW, y + rowH);
+
+      txt(stageName + ':', ml+2, y+5, { bold:true, size:8, maxW: stageColW-4 });
+      doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      doc.text(contentLines, ml + stageColW + 2, y + 5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      doc.text(stageTimes[si], ml + stageColW + contentColW + timeColW/2, y + rowH/2 + 2, { align:'center' });
+      y += rowH;
     });
+
+    y += 3;
+
+    // ── Comments table ─────────────────────────────────────────
+    checkY(24);
+    tableBox(ml, y, usable, 8);
+    txt('Comments and Observations', ml+2, y+5.5, { bold:true, size:8 });
+    y += 8;
+
+    const hw   = sections['Homework']            || '______';
+    const fa   = sections['Formative Assessment'] || '______';
+    const tc   = sections["Teacher's Comments"]  || '______';
+    const commLines = doc.splitTextToSize(
+      'Homework: ' + hw + '\nFormative Assessment: ' + fa + "\nTeacher's Comments: " + tc,
+      usable - 4
+    );
+    const commH = Math.max(18, commLines.length * 4.5 + 4);
+    checkY(commH);
+    tableBox(ml, y, usable, commH);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    commLines.forEach((l, i) => {
+      const isBold = /^(Homework|Formative Assessment|Teacher)/i.test(l);
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+      doc.text(l, ml+2, y + 5 + i * 4.5);
+    });
+    y += commH + 4;
   });
 
-  doc.save(`Lesson_Planners_${(planData.theme || 'theme').replace(/\s+/g,'_')}.pdf`);
+  doc.save('Lesson_Planners_' + (planData.theme || 'theme').replace(/\s+/g,'_') + '.pdf');
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────
