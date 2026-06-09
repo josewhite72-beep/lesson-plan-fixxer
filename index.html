@@ -419,16 +419,56 @@ function extractOutcomes(text) {
   const skills = ['Listening','Reading','Speaking','Writing','Mediation'];
   const outcomes = {};
 
-  skills.forEach((skill, i) => {
-    const next = skills[i+1] || 'Communicative';
-    // Try to find block between skill header and next skill
-    const pattern = new RegExp(skill + '[\\s\\S]{0,200}?Can [\\s\\S]{0,800}?(?=' + (skills[i+1]||'Communicative') + '|3\\.)', 'i');
-    const block = text.match(pattern);
-    if (block) {
-      const lines = block[0].match(/Can [^\n\.]{5,200}[\.\n]/gi) || [];
-      outcomes[skill] = lines.map(l => l.trim()).join('\n');
+  // Step 1: rejoin broken lines into full sentences
+  // PDF.js splits long lines at arbitrary points
+  const rawLines = text.split('\n');
+  const rejoined = [];
+  let buf = '';
+  for (let line of rawLines) {
+    const s = line.trim();
+    if (!s) {
+      if (buf) { rejoined.push(buf); buf = ''; }
+      continue;
+    }
+    if (buf && !buf.endsWith('.') && !buf.endsWith(':')) {
+      buf += ' ' + s;
     } else {
-      outcomes[skill] = '';
+      if (buf) rejoined.push(buf);
+      buf = s;
+    }
+  }
+  if (buf) rejoined.push(buf);
+
+  // Step 2: for each skill, find its block and extract 'Can ...' lines
+  const fullText = rejoined.join('\n');
+
+  skills.forEach((skill, i) => {
+    const nextSkill = skills[i + 1] || 'Communicative';
+    // Match block from "Skill:" up to next skill or section marker
+    const pat = new RegExp(
+      skill + ':?\\s*\\n([\\s\\S]*?)(?=\\n\\d+\\.?\\s*' + nextSkill + '|\\n' + nextSkill + '|3\\.\\s*Communicative|Made with Emergent)',
+      'i'
+    );
+    const m = fullText.match(pat);
+    if (m) {
+      const block = m[1];
+      // Extract only lines that start with 'Can '
+      const canLines = block.split('\n')
+        .map(l => l.trim())
+        .filter(l => /^Can\s+/i.test(l));
+      outcomes[skill] = canLines.join('\n');
+    } else {
+      // Fallback: search entire text for 'Can ...' near skill label
+      const fallbackPat = new RegExp(skill + '[\\s\\S]{0,50}?((?:Can\\s+[^\\n]+\\n?)+)', 'i');
+      const fb = fullText.match(fallbackPat);
+      if (fb) {
+        const canLines = fb[1].split('\n')
+          .map(l => l.trim())
+          .filter(l => /^Can\s+/i.test(l));
+        outcomes[skill] = canLines.join('\n');
+      } else {
+        outcomes[skill] = '';
+      }
     }
   });
 
