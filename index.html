@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson Plan Fixer — PanaMentorLabs</title>
+<meta name="description" content="Genera los 5 lesson planners AOA correctamente diferenciados por habilidad">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="theme-color" content="#1a5276">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="LPFixer">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; color: #1a1a1a; min-height: 100vh; }
+
+  header {
+    background: #1a5276;
+    color: #fff;
+    padding: 20px 24px 16px;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; }
+  header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+
+  main { max-width: 680px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 1rem; font-weight: 700; color: #1a5276; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+  .upload-zone {
+    border: 2px dashed #aab7c4;
+    border-radius: 8px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: #1a5276; background: #eaf0f6; }
+  .upload-zone p { font-size: 0.9rem; color: #555; margin-top: 8px; }
+  .upload-zone span { font-size: 2rem; }
+  #fileInput { display: none; }
+
+  .file-name {
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: #1a5276;
+    font-weight: 600;
+    word-break: break-all;
+  }
+
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #333; }
+  select, input[type=text], textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: #fff;
+    margin-bottom: 14px;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  select:focus, input:focus, textarea:focus { outline: 2px solid #1a5276; border-color: #1a5276; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #1a5276;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #154360; }
+  .btn:disabled { background: #7f8c8d; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: #fff;
+    color: #1a5276;
+    border: 2px solid #1a5276;
+    margin-top: 10px;
+  }
+  .btn-secondary:hover { background: #eaf0f6; }
+
+  #status {
+    display: none;
+    background: #eaf0f6;
+    border-left: 4px solid #1a5276;
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+    white-space: pre-wrap;
+  }
+
+  #preview {
+    display: none;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 14px;
+  }
+
+  .pill {
+    display: inline-block;
+    background: #d5e8f5;
+    color: #1a5276;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: #dce6ec;
+    border-radius: 4px;
+    margin-top: 10px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #1a5276;
+    width: 0%;
+    transition: width 0.4s ease;
+    border-radius: 4px;
+  }
+
+  .skill-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip {
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1.5px solid #1a5276;
+    color: #1a5276;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .chip.active { background: #1a5276; color: #fff; }
+
+  footer { text-align: center; font-size: 0.75rem; color: #888; padding: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Lesson Plan Fixer</h1>
+  <p>PanaMentorLabs — Genera los 5 lesson planners AOA diferenciados por habilidad</p>
+</header>
+
+<main>
+
+  <!-- PASO 1: SUBIR ARCHIVO -->
+  <div class="card">
+    <h2>📄 Paso 1 — Sube el planeamiento <span class="pill">PDF o Word</span></h2>
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span>📁</span>
+      <p>Toca para seleccionar o arrastra el archivo aquí</p>
+      <p style="font-size:0.75rem;color:#888;margin-top:4px;">Acepta .pdf y .docx generados por Emergent</p>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.docx">
+    <div class="file-name" id="fileName"></div>
+    <div class="progress-bar" id="extractBar"><div class="progress-fill" id="extractFill"></div></div>
+  </div>
+
+  <!-- PASO 2: DATOS EXTRAÍDOS / EDITAR -->
+  <div class="card" id="dataCard" style="display:none">
+    <h2>✏️ Paso 2 — Verifica los datos extraídos</h2>
+
+    <div class="row2">
+      <div>
+        <label>Grado</label>
+        <input type="text" id="grade" placeholder="Ej: Grade 3">
+      </div>
+      <div>
+        <label>Nivel CEFR</label>
+        <input type="text" id="cefr" placeholder="Ej: A1.1">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Trimestre</label>
+        <input type="text" id="trimester" placeholder="Ej: 2">
+      </div>
+      <div>
+        <label>Horas semanales</label>
+        <input type="text" id="hours" placeholder="Ej: 5">
+      </div>
+    </div>
+
+    <label>Escenario</label>
+    <input type="text" id="scenario" placeholder="Ej: Discovering Our Classroom">
+
+    <label>Tema (Theme)</label>
+    <input type="text" id="theme" placeholder="Ej: What's in Your Bag?">
+
+    <label>Docente</label>
+    <input type="text" id="teacher" placeholder="Ej: Prof. José White">
+
+    <label>Vocabulario clave</label>
+    <input type="text" id="vocabulary" placeholder="Ej: book, pencil, eraser, desk, chair">
+
+    <label>Estructura(s) gramatical(es)</label>
+    <input type="text" id="grammar" placeholder="Ej: WH-questions, Present simple, Prepositions of place">
+
+    <label>Indicadores de logro — Listening</label>
+    <textarea id="lo_listening" placeholder="Un indicador por línea&#10;Ej: Can follow oral directions for simple games.&#10;Can present responses based on listened questions."></textarea>
+
+    <label>Indicadores de logro — Reading</label>
+    <textarea id="lo_reading" placeholder="Un indicador por línea"></textarea>
+
+    <label>Indicadores de logro — Speaking</label>
+    <textarea id="lo_speaking" placeholder="Un indicador por línea"></textarea>
+
+    <label>Indicadores de logro — Writing</label>
+    <textarea id="lo_writing" placeholder="Un indicador por línea"></textarea>
+
+    <label>Indicadores de logro — Mediation</label>
+    <textarea id="lo_mediation" placeholder="Un indicador por línea"></textarea>
+
+    <label>Proyecto del Siglo XXI (nombre y descripción breve)</label>
+    <textarea id="project21" placeholder="Ej: My Classroom Map — Students create a simple map of their classroom identifying objects and areas using basic sentences."></textarea>
+  </div>
+
+  <!-- PASO 3: GENERAR -->
+  <div class="card" id="genCard" style="display:none">
+    <h2>⚙️ Paso 3 — Generar las 5 lecciones</h2>
+    <p style="font-size:0.85rem;color:#555;margin-bottom:14px;">La IA generará cada lesson planner con actividades propias de su habilidad, correctamente diferenciadas según el AOA.</p>
+
+    <div class="skill-chips" id="skillChips">
+      <div class="chip active" data-skill="Listening">Listening</div>
+      <div class="chip active" data-skill="Reading">Reading</div>
+      <div class="chip active" data-skill="Speaking">Speaking</div>
+      <div class="chip active" data-skill="Writing">Writing</div>
+      <div class="chip active" data-skill="Mediation">Mediation</div>
+    </div>
+    <p style="font-size:0.75rem;color:#888;margin-bottom:14px;">Toca para incluir/excluir habilidades</p>
+
+    <div class="progress-bar" id="genBar" style="display:block;margin-bottom:14px;"><div class="progress-fill" id="genFill"></div></div>
+
+    <div id="status"></div>
+
+    <button class="btn" id="btnGenerate" onclick="generateAll()">Generar 5 Lesson Planners</button>
+  </div>
+
+  <!-- PASO 4: EXPORTAR -->
+  <div class="card" id="exportCard" style="display:none">
+    <h2>💾 Paso 4 — Exportar</h2>
+    <div id="preview"></div>
+    <button class="btn" onclick="exportWord()">⬇ Descargar Word (.docx)</button>
+    <button class="btn btn-secondary" onclick="exportPDF()">⬇ Descargar PDF</button>
+    <button class="btn btn-secondary" onclick="resetAll()" style="margin-top:6px;">↺ Nuevo planeamiento</button>
+  </div>
+
+</main>
+
+<footer>PanaMentorLabs — English Teachers Tools · MEDUCA AOA Curriculum</footer>
+
+<!-- LIBRARIES -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+// ── PDF.js worker ─────────────────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let generatedLessons = []; // array of {skill, content (string)}
+let planData = {};
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+// ── Skill chips toggle ────────────────────────────────────────────────────
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => chip.classList.toggle('active'));
+});
+
+// ── File handling ─────────────────────────────────────────────────────────
+async function handleFile(file) {
+  document.getElementById('fileName').textContent = '📎 ' + file.name;
+  setExtractProgress(20);
+  let text = '';
+  try {
+    if (file.name.endsWith('.pdf')) {
+      text = await extractPDF(file);
+    } else if (file.name.endsWith('.docx')) {
+      text = await extractDOCX(file);
+    } else {
+      alert('Solo se aceptan archivos .pdf o .docx');
+      return;
+    }
+    setExtractProgress(70);
+    parseAndFill(text);
+    setExtractProgress(100);
+    document.getElementById('dataCard').style.display = 'block';
+    document.getElementById('genCard').style.display = 'block';
+    setTimeout(() => document.getElementById('dataCard').scrollIntoView({behavior:'smooth'}), 300);
+  } catch(err) {
+    alert('Error al leer el archivo: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function extractPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(s => s.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+async function extractDOCX(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value;
+}
+
+function setExtractProgress(pct) {
+  const bar = document.getElementById('extractBar');
+  bar.style.display = 'block';
+  document.getElementById('extractFill').style.width = pct + '%';
+}
+
+// ── Parse extracted text and fill form ───────────────────────────────────
+function parseAndFill(text) {
+  const get = (pattern) => {
+    const m = text.match(pattern);
+    return m ? m[1].trim() : '';
+  };
+
+  // Grade
+  const grade = get(/Grade[:\s]+(\w+\s*\w*)/i) || get(/(Grade\s*\d+)/i);
+  document.getElementById('grade').value = grade;
+
+  // CEFR
+  const cefr = get(/CEFR[^:]*:\s*([A-C]\d[\.\d]*)/i);
+  document.getElementById('cefr').value = cefr;
+
+  // Trimester
+  const trim = get(/Trimester[:\s]+(\d)/i) || get(/trimestre[:\s]+(\d)/i);
+  document.getElementById('trimester').value = trim;
+
+  // Hours
+  const hrs = get(/Weekly\s*Hours?[:\s]+(\d+)/i) || get(/Horas[^:]*:\s*(\d+)/i);
+  document.getElementById('hours').value = hrs;
+
+  // Scenario
+  const scenario = get(/Scenario[^:]*:\s*([^\n\.]{5,60})/i);
+  document.getElementById('scenario').value = scenario;
+
+  // Theme
+  const theme = get(/Theme[^:]*:\s*([^\n\.]{3,60})/i);
+  document.getElementById('theme').value = theme;
+
+  // Teacher
+  const teacher = get(/Teacher[^:]*:\s*([^\n]{3,50})/i);
+  document.getElementById('teacher').value = teacher;
+
+  // Vocabulary
+  const vocab = get(/Vocabulary[:\s]*\n?\s*([^\n]{10,200})/i);
+  document.getElementById('vocabulary').value = vocab;
+
+  // Grammar
+  const grammar = get(/Grammatical Features[:\s]*\n?\s*([^\n]{5,300})/i)
+                || get(/Grammar[:\s]+([^\n]{5,200})/i);
+  document.getElementById('grammar').value = grammar;
+
+  // Learning outcomes by skill
+  extractOutcomes(text);
+
+  // 21st century project
+  const proj = get(/21st[^:]*Century[^:]*:\s*([^\n]{5,200})/i)
+             || get(/Project[:\s]*\n\s*Name[:\s]*([^\n]{3,100})/i);
+  document.getElementById('project21').value = proj;
+}
+
+function extractOutcomes(text) {
+  const skills = ['Listening','Reading','Speaking','Writing','Mediation'];
+  const outcomes = {};
+
+  skills.forEach((skill, i) => {
+    const next = skills[i+1] || 'Communicative';
+    // Try to find block between skill header and next skill
+    const pattern = new RegExp(skill + '[\\s\\S]{0,200}?Can [\\s\\S]{0,800}?(?=' + (skills[i+1]||'Communicative') + '|3\\.)', 'i');
+    const block = text.match(pattern);
+    if (block) {
+      const lines = block[0].match(/Can [^\n\.]{5,200}[\.\n]/gi) || [];
+      outcomes[skill] = lines.map(l => l.trim()).join('\n');
+    } else {
+      outcomes[skill] = '';
+    }
+  });
+
+  document.getElementById('lo_listening').value = outcomes['Listening'] || '';
+  document.getElementById('lo_reading').value = outcomes['Reading'] || '';
+  document.getElementById('lo_speaking').value = outcomes['Speaking'] || '';
+  document.getElementById('lo_writing').value = outcomes['Writing'] || '';
+  document.getElementById('lo_mediation').value = outcomes['Mediation'] || '';
+}
+
+// ── Collect form data ─────────────────────────────────────────────────────
+function collectData() {
+  return {
+    grade: document.getElementById('grade').value.trim(),
+    cefr: document.getElementById('cefr').value.trim(),
+    trimester: document.getElementById('trimester').value.trim(),
+    hours: document.getElementById('hours').value.trim(),
+    scenario: document.getElementById('scenario').value.trim(),
+    theme: document.getElementById('theme').value.trim(),
+    teacher: document.getElementById('teacher').value.trim(),
+    vocabulary: document.getElementById('vocabulary').value.trim(),
+    grammar: document.getElementById('grammar').value.trim(),
+    lo: {
+      Listening: document.getElementById('lo_listening').value.trim(),
+      Reading: document.getElementById('lo_reading').value.trim(),
+      Speaking: document.getElementById('lo_speaking').value.trim(),
+      Writing: document.getElementById('lo_writing').value.trim(),
+      Mediation: document.getElementById('lo_mediation').value.trim(),
+    },
+    project21: document.getElementById('project21').value.trim(),
+  };
+}
+
+// ── AI generation ─────────────────────────────────────────────────────────
+const SKILL_GUIDANCE = {
+  Listening: {
+    role: 'receptor of oral language',
+    insumo: 'audio, oral dialogue, teacher speech, or recorded description',
+    stages: `Stage 1 - Warm-up: Activate prior knowledge with images and oral questions about the topic vocabulary. Do NOT use a written text as main input.
+Stage 2 - Presentation: Play audio or present an oral dialogue with the target vocabulary. Students listen only on first play. Replay with visual flashcard support.
+Stage 3 - Preparation: Replay audio pausing at key words. Students complete a guided listening worksheet (circle, match, or number). Practice pronunciation chorally.
+Stage 4 - Performance: Students listen independently to the audio. Complete comprehension exercises autonomously. Identify and mark key vocabulary heard.
+Stage 5 - Assessment: Review answers in pairs. Formative check: students point to images corresponding to what they heard. Teacher asks simple oral comprehension questions.
+Stage 6 - Reflection: Students share new words learned. Discuss what was easy or difficult to understand. Connect the audio content to their real lives.`,
+  },
+  Reading: {
+    role: 'receptor of written language',
+    insumo: 'a written text, short narrative, or informational paragraph',
+    stages: `Stage 1 - Warm-up: Display images related to the topic. Ask oral questions to activate prior knowledge. Pre-teach 3-5 key vocabulary words from the text using visuals.
+Stage 2 - Presentation: Distribute or display the written text. Read the text aloud together while students follow along. Highlight key words and main ideas.
+Stage 3 - Preparation: Students re-read the text in pairs or silently. Guide them to identify the main idea and supporting details using graphic organizers or guided questions. Practice decoding challenging words.
+Stage 4 - Performance: Students read the text independently. Complete comprehension tasks autonomously: answer questions, create a list from the text, identify main ideas and details as stated in the learning outcomes.
+Stage 5 - Assessment: Review comprehension answers as a group. Formative check: students highlight or underline evidence from the text. Teacher verifies understanding through targeted questions about the text content.
+Stage 6 - Reflection: Students share what the text was about in their own words. Discuss reading strategies used. Connect the text topic to personal experience or prior knowledge.`,
+  },
+  Speaking: {
+    role: 'producer of oral language',
+    insumo: 'images, prompts, question cards, or a communicative situation',
+    stages: `Stage 1 - Warm-up: Display topic images. Model target structures and vocabulary orally. Invite students to repeat and respond to simple oral questions about the images.
+Stage 2 - Presentation: Model the target oral interaction using the grammatical structures and vocabulary of the theme. Demonstrate the speaking task with a student or puppet. Students listen and observe.
+Stage 3 - Preparation: Students practice the target oral structures in a controlled way: repeat model sentences, complete sentence frames orally, practice in chorus and then in pairs. Do NOT use a listening comprehension worksheet here.
+Stage 4 - Performance: Students carry out the oral communicative task autonomously: interact with a partner using WH-questions or target structures, narrate or describe using the topic vocabulary, produce 3-5 complete sentences as stated in the learning outcomes.
+Stage 5 - Assessment: Pairs or groups demonstrate their oral interaction to the class. Formative check: teacher notes use of target vocabulary and structures during performance. Students do a brief peer evaluation of one another's oral production.
+Stage 6 - Reflection: Students identify which words or structures they found easy or difficult to say. Discuss how they would use these expressions outside the classroom. Celebrate oral participation.`,
+  },
+  Writing: {
+    role: 'producer of written language',
+    insumo: 'a communicative writing prompt, image, or situation card',
+    stages: `Stage 1 - Warm-up: Review key vocabulary through a brief oral or visual activity. Display a model text or sentence on the board as a writing reference.
+Stage 2 - Presentation: Present the writing task and its communicative purpose. Show a model of the expected written product (poster, short text, sentences). Discuss what makes a good written response for this task.
+Stage 3 - Preparation: Students plan their writing: brainstorm ideas, organize vocabulary they will use, complete a guided writing frame or graphic organizer. Teacher provides support and corrective feedback during planning.
+Stage 4 - Performance: Students produce their written text autonomously: write 3-5 sentences, compose a short draft, or create an instructional poster as stated in the learning outcomes. Focus on correct spelling of target vocabulary and use of grammatical structures.
+Stage 5 - Assessment: Students share written work in pairs for peer review. Teacher collects samples for formative assessment. Check correct spelling of at least 5 vocabulary words and appropriate use of grammatical structures.
+Stage 6 - Reflection: Students identify words they found difficult to spell or structures that were challenging. Discuss how they can improve. Display selected written work as classroom evidence of learning.`,
+  },
+  Mediation: {
+    role: 'mediator who transfers and adapts meaning for others',
+    insumo: 'a text, image, concept, or vocabulary set that needs to be explained or reformulated',
+    stages: `Stage 1 - Warm-up: Review key vocabulary and concepts from previous lessons. Present a simple concept or keyword and ask students: "How would you explain this to a friend who does not know it?"
+Stage 2 - Presentation: Model a mediation task: take a keyword or concept from the theme and demonstrate how to explain it in simpler terms, compare it to something familiar, or reformulate it for a peer. Make the mediating process visible.
+Stage 3 - Preparation: In pairs or small groups, students choose a keyword or concept from the theme. They prepare how to explain or compare it: use drawings, simple sentences, or comparisons to familiar objects as stated in the learning outcomes.
+Stage 4 - Performance: Students carry out the mediation task: explain keywords in simpler terms to a partner, compare a classroom concept to something familiar, or collaborate to complete a group product that demonstrates understanding for an audience.
+Stage 5 - Assessment: Groups share their mediations with the class. Peers evaluate whether the explanation was clear and understandable. Teacher provides formative feedback on accuracy and communicative clarity of the mediation.
+Stage 6 - Reflection: Students reflect on the mediation process: Was it easy to explain? What words helped? How is this skill useful outside the classroom? Connect mediation to real-life situations where they explain things to others.`,
+  },
+};
+
+async function generateAll() {
+  planData = collectData();
+  const activeSkills = [...document.querySelectorAll('.chip.active')].map(c => c.dataset.skill);
+  if (activeSkills.length === 0) { alert('Selecciona al menos una habilidad.'); return; }
+
+  document.getElementById('btnGenerate').disabled = true;
+  document.getElementById('status').style.display = 'block';
+  document.getElementById('genBar').style.display = 'block';
+  generatedLessons = [];
+
+  let done = 0;
+  for (const skill of activeSkills) {
+    setStatus(`Generando Lesson ${done+1} — ${skill}...`);
+    setGenProgress(Math.round((done / activeSkills.length) * 90));
+    try {
+      const content = await generateLesson(skill, done + 1, planData);
+      generatedLessons.push({ skill, content });
+    } catch(err) {
+      setStatus(`Error en ${skill}: ${err.message}`);
+      document.getElementById('btnGenerate').disabled = false;
+      return;
+    }
+    done++;
+  }
+
+  setGenProgress(100);
+  setStatus('¡Listo! Los 5 lesson planners han sido generados.');
+  document.getElementById('exportCard').style.display = 'block';
+
+  // Show preview of first lesson
+  const prev = document.getElementById('preview');
+  prev.style.display = 'block';
+  prev.textContent = generatedLessons.map(l => `=== LESSON — ${l.skill.toUpperCase()} ===\n\n${l.content}`).join('\n\n' + '─'.repeat(60) + '\n\n');
+  document.getElementById('exportCard').scrollIntoView({behavior:'smooth'});
+  document.getElementById('btnGenerate').disabled = false;
+}
+
+async function generateLesson(skill, lessonNum, data) {
+  const guide = SKILL_GUIDANCE[skill];
+  const lo = data.lo[skill] || `Can demonstrate ${skill.toLowerCase()} competence related to the theme.`;
+
+  const prompt = `You are an expert MEDUCA Panama English curriculum planner trained in the Action-Oriented Approach (AOA). 
+Generate a complete Lesson Planner for the following lesson. Return ONLY the lesson content with NO markdown, NO asterisks, NO bullet symbols, NO bold markers, NO colors — plain text only, structured with clear labels.
+
+LESSON INFORMATION:
+- Grade: ${data.grade}
+- CEFR Level: ${data.cefr}
+- Trimester: ${data.trimester}
+- Weekly Hours: ${data.hours}
+- Scenario: ${data.scenario}
+- Theme: ${data.theme}
+- Lesson Number: ${lessonNum}
+- Skills Focus: ${skill}
+- Teacher: ${data.teacher || '_______________'}
+
+LEARNING OUTCOMES FOR THIS LESSON (${skill}):
+${lo}
+
+KEY VOCABULARY: ${data.vocabulary}
+GRAMMATICAL STRUCTURES: ${data.grammar}
+
+SKILL ROLE: In this lesson the student is a ${guide.role}.
+MAIN INPUT/INSUMO: ${guide.insumo}
+
+CRITICAL RULES:
+1. This is a ${skill} lesson. ALL 6 stages must center on ${skill} activities. Do NOT use audio-listening activities as the main task in stages 2, 3, or 4 unless this IS the Listening lesson.
+2. The Stage 4 Performance task must directly demonstrate the learning outcomes listed above.
+3. Do NOT include "Cannot..." in any descriptor. Use "Has difficulty..." instead.
+4. Write the specific objective starting with: "By the end of this lesson, students will be able to..."
+5. The learning outcome field must list the exact learning outcomes from the list above.
+6. Keep each stage concise: 2-4 action items only.
+7. Use the exact stage format below. Do NOT add extra sections.
+
+OUTPUT FORMAT (use exactly these labels, plain text):
+Lesson # ${lessonNum} | Skills focus: ${skill} | Grade: ${data.grade} | Scenario: ${data.scenario} | Theme: ${data.theme} | Time: 45-60 minutes
+
+Specific Objective: [write here]
+
+Learning Outcome: [list the learning outcomes for ${skill}]
+
+Stage 1 - Warm-up / Pre-task: [2-3 items] | Estimated time: 10 min
+
+Stage 2 - Presentation: [2-3 items] | Estimated time: 15 min
+
+Stage 3 - Preparation: [2-4 items] | Estimated time: 10 min
+
+Stage 4 - Performance: [2-3 items] | Estimated time: 10 min
+
+Stage 5 - Assessment / Post-task: [2-3 items] | Estimated time: 5 min
+
+Stage 6 - Reflection: [2-3 items] | Estimated time: 5 min
+
+Homework: ______
+Formative Assessment: [brief description appropriate to ${skill}]
+Teacher's Comments: ______
+
+STAGE GUIDANCE FOR ${skill.toUpperCase()} (follow this closely):
+${guide.stages}`;
+
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || 'API error ' + response.status);
+  }
+  const data2 = await response.json();
+  return data2.choices?.[0]?.message?.content || '';
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('status');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+function setGenProgress(pct) {
+  document.getElementById('genFill').style.width = pct + '%';
+}
+
+// ── WORD EXPORT ───────────────────────────────────────────────────────────
+async function exportWord() {
+  const {
+    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+    AlignmentType, BorderStyle, WidthType, VerticalAlign, HeadingLevel, PageBreak
+  } = docx;
+
+  const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+  const borders = { top: border, bottom: border, left: border, right: border };
+  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const noBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder };
+  const cm = { top: 80, bottom: 80, left: 120, right: 120 };
+
+  function R(text, opts = {}) {
+    return new TextRun({ text: String(text), font: 'Arial', size: opts.size || 20, bold: opts.bold || false, italics: opts.italics || false });
+  }
+  function P(children, align) {
+    return new Paragraph({ alignment: align || AlignmentType.LEFT, spacing: { before: 60, after: 60 }, children: Array.isArray(children) ? children : [children] });
+  }
+  function cell(children, w) {
+    return new TableCell({ borders, width: w ? { size: w, type: WidthType.DXA } : undefined, margins: cm, verticalAlign: VerticalAlign.TOP, children: Array.isArray(children) ? children : [children] });
+  }
+  function spacer() { return new Paragraph({ spacing: { before: 100, after: 100 }, children: [R('')] }); }
+
+  // Header table (MEDUCA format)
+  function makeHeaderTable(lesson, skill) {
+    const W = 9360;
+    const c1 = 2340, c2 = 2340, c3 = 2340, c4 = 2340;
+    return new Table({
+      width: { size: W, type: WidthType.DXA },
+      columnWidths: [c1, c2, c3, c4],
+      rows: [
+        // Title row
+        new TableRow({ children: [
+          new TableCell({ borders: noBorders, columnSpan: 4, margins: cm,
+            children: [P([R('GOBIERNO NACIONAL', { bold: true, size: 18 })], AlignmentType.CENTER)] })
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ borders: noBorders, columnSpan: 4, margins: cm,
+            children: [P([R('MINISTERIO DE EDUCACION', { bold: true, size: 18 })], AlignmentType.CENTER)] })
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ borders: noBorders, columnSpan: 4, margins: cm,
+            children: [P([R('Direccion Nacional de Curriculo de Lengua Extranjera', { size: 18 })], AlignmentType.CENTER)] })
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ borders: noBorders, columnSpan: 4, margins: cm,
+            children: [P([R('Lesson Planner - Theme # ___ - Lesson # ' + lesson, { bold: true, size: 22 })], AlignmentType.CENTER)] })
+        ]}),
+        // Info row 1
+        new TableRow({ children: [
+          cell([P([R('Lesson # ' + lesson, { bold: true })])], c1),
+          cell([P([R('Skills focus: ' + skill, { bold: true })])], c2),
+          cell([P([R('Grade: ' + (planData.grade || '___'), { bold: true })])], c3),
+          cell([P([R('CEFR: ' + (planData.cefr || '___'), { bold: true })])], c4),
+        ]}),
+        // Info row 2
+        new TableRow({ children: [
+          cell([P([R('Scenario: ' + (planData.scenario || '___')), ])], c1 + c2),
+          cell([P([R('Theme: ' + (planData.theme || '___'))])], c3 + c4),
+        ]}),
+        new TableRow({ children: [
+          cell([P([R('Teacher: ' + (planData.teacher || '_______________'))])], c1 + c2),
+          cell([P([R('Trimester: ' + (planData.trimester || '___') + '   Hours: ' + (planData.hours || '___'))])], c3 + c4),
+        ]}),
+      ]
+    });
+  }
+
+  // Parse lesson text into structured sections
+  function parseLessonText(text) {
+    const sections = {};
+    const lines = text.split('\n');
+    let current = 'header';
+    let buffer = [];
+
+    lines.forEach(line => {
+      const stageMatch = line.match(/^(Stage \d+ - [^:]+|Specific Objective|Learning Outcome|Homework|Formative Assessment|Teacher.s Comments)/i);
+      if (stageMatch) {
+        sections[current] = buffer.join('\n').trim();
+        current = stageMatch[1].trim();
+        // Remove the label from the line
+        buffer = [line.replace(/^[^:]+:\s*/, '').replace(/\|\s*Estimated time[^$]*/i, '').trim()];
+      } else {
+        buffer.push(line);
+      }
+    });
+    sections[current] = buffer.join('\n').trim();
+    return sections;
+  }
+
+  // Build stage table row
+  function makeStageRow(label, content, time) {
+    const W = 9360;
+    const labelW = 3000, contentW = 5160, timeW = 1200;
+    const lines = content.split('\n').filter(l => l.trim());
+    return new TableRow({ children: [
+      new TableCell({ borders, width: { size: labelW, type: WidthType.DXA }, margins: cm, verticalAlign: VerticalAlign.TOP,
+        children: [P([R(label, { bold: true })])] }),
+      new TableCell({ borders, width: { size: contentW, type: WidthType.DXA }, margins: cm, verticalAlign: VerticalAlign.TOP,
+        children: lines.length > 0 ? lines.map(l => P([R(l.replace(/^[-•*]\s*/, ''))])) : [P([R(content)])] }),
+      new TableCell({ borders, width: { size: timeW, type: WidthType.DXA }, margins: cm, verticalAlign: VerticalAlign.CENTER,
+        children: [P([R(time)], AlignmentType.CENTER)] }),
+    ]});
+  }
+
+  // Build a full lesson page
+  function buildLessonSection(lessonObj, lessonNum) {
+    const { skill, content } = lessonObj;
+    const sections = parseLessonText(content);
+
+    const stageTimings = ['10 min','15 min','10 min','10 min','5 min','5 min'];
+    const stageNames = [
+      'Stage 1 - Warm-up / Pre-task',
+      'Stage 2 - Presentation',
+      'Stage 3 - Preparation',
+      'Stage 4 - Performance',
+      'Stage 5 - Assessment / Post-task',
+      'Stage 6 - Reflection'
+    ];
+
+    const W = 9360;
+    const children = [
+      makeHeaderTable(lessonNum, skill),
+      spacer(),
+
+      // Objective row
+      new Table({ width: { size: W, type: WidthType.DXA }, columnWidths: [2200, 7160], rows: [
+        new TableRow({ children: [
+          cell([P([R('Specific Objective:', { bold: true })])], 2200),
+          cell([P([R(sections['Specific Objective'] || '______')])], 7160),
+        ]}),
+        new TableRow({ children: [
+          cell([P([R('Learning Outcome:', { bold: true })])], 2200),
+          cell([P([R(sections['Learning Outcome'] || '______')])], 7160),
+        ]}),
+      ]}),
+      spacer(),
+
+      // Stages header
+      new Table({ width: { size: W, type: WidthType.DXA }, columnWidths: [3000, 5160, 1200], rows: [
+        new TableRow({ children: [
+          new TableCell({ borders, width: { size: 3000, type: WidthType.DXA }, margins: cm,
+            children: [P([R('The Six Action-oriented Approach Lesson Stages', { bold: true })], AlignmentType.CENTER)] }),
+          new TableCell({ borders, width: { size: 5160, type: WidthType.DXA }, margins: cm,
+            children: [P([R('')] )] }),
+          new TableCell({ borders, width: { size: 1200, type: WidthType.DXA }, margins: cm,
+            children: [P([R('Estimated Time', { bold: true })], AlignmentType.CENTER)] }),
+        ]}),
+        ...stageNames.map((stageName, i) => {
+          const key = Object.keys(sections).find(k => k.toLowerCase().includes('stage ' + (i+1)));
+          const content = key ? sections[key] : '______';
+          return makeStageRow(stageName + ':', content, stageTimings[i]);
+        })
+      ]}),
+      spacer(),
+
+      // Comments table
+      new Table({ width: { size: W, type: WidthType.DXA }, columnWidths: [9360], rows: [
+        new TableRow({ children: [
+          new TableCell({ borders, margins: cm, children: [
+            P([R('Comments and Observations', { bold: true })]),
+          ]})
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ borders, margins: cm, children: [
+            P([R('Homework: ', { bold: true }), R(sections['Homework'] || '______')]),
+            P([R('Formative Assessment: ', { bold: true }), R(sections['Formative Assessment'] || '______')]),
+            P([R("Teacher's Comments: ", { bold: true }), R(sections["Teacher's Comments"] || '______')]),
+          ]})
+        ]}),
+      ]}),
+    ];
+
+    return children;
+  }
+
+  // Assemble document
+  const allChildren = [];
+  generatedLessons.forEach((lesson, idx) => {
+    if (idx > 0) allChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    buildLessonSection(lesson, idx + 1).forEach(el => allChildren.push(el));
+  });
+
+  const doc = new Document({
+    styles: {
+      default: { document: { run: { font: 'Arial', size: 20 } } },
+      paragraphStyles: [
+        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal',
+          run: { size: 24, bold: true, font: 'Arial', color: '000000' },
+          paragraph: { spacing: { before: 200, after: 100 }, outlineLevel: 0 } },
+      ]
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 12240, height: 15840 },
+          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+        }
+      },
+      children: allChildren
+    }]
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  downloadBlob(blob, `Lesson_Planners_${(planData.theme || 'theme').replace(/\s+/g,'_')}.docx`);
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────────────────
+async function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const margin = 15;
+  const pageW = 216;
+  const usable = pageW - margin * 2;
+  let y = margin;
+
+  function checkPage(needed = 10) {
+    if (y + needed > 270) { doc.addPage(); y = margin; }
+  }
+
+  function drawText(text, x, yPos, opts = {}) {
+    doc.setFontSize(opts.size || 10);
+    doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+    doc.text(String(text), x, yPos, { maxWidth: opts.maxWidth || usable });
+  }
+
+  generatedLessons.forEach((lesson, idx) => {
+    if (idx > 0) { doc.addPage(); y = margin; }
+
+    // MEDUCA header
+    drawText('GOBIERNO NACIONAL', pageW/2, y, { bold: true, size: 9 });
+    doc.setTextColor(0);
+    doc.text('GOBIERNO NACIONAL', pageW/2, y, { align: 'center' });
+    y += 5;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text('MINISTERIO DE EDUCACION', pageW/2, y, { align: 'center' });
+    y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('Direccion Nacional de Curriculo de Lengua Extranjera', pageW/2, y, { align: 'center' });
+    y += 7;
+
+    // Lesson title
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(`Lesson Planner - Lesson # ${idx+1} - ${lesson.skill}`, pageW/2, y, { align: 'center' });
+    y += 8;
+
+    // Info box
+    doc.setDrawColor(0); doc.setLineWidth(0.3);
+    doc.rect(margin, y, usable, 20);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text(`Lesson: ${idx+1}  |  Skill: ${lesson.skill}  |  Grade: ${planData.grade || '___'}  |  CEFR: ${planData.cefr || '___'}`, margin+2, y+6);
+    doc.text(`Scenario: ${planData.scenario || '___'}`, margin+2, y+12);
+    doc.text(`Theme: ${planData.theme || '___'}`, margin+2, y+18);
+    y += 24;
+
+    // Lesson content
+    const lines = lesson.content.split('\n');
+    lines.forEach(line => {
+      if (!line.trim()) { y += 3; return; }
+      checkPage(8);
+      const isHeader = /^(Stage \d+|Specific Objective|Learning Outcome|Homework|Formative|Teacher)/i.test(line);
+      doc.setFont('helvetica', isHeader ? 'bold' : 'normal');
+      doc.setFontSize(isHeader ? 9 : 8.5);
+      const wrapped = doc.splitTextToSize(line.replace(/^[-•*]\s*/, ''), usable - 4);
+      wrapped.forEach(wl => {
+        checkPage(6);
+        doc.text(wl, margin + 2, y);
+        y += 5;
+      });
+    });
+  });
+
+  doc.save(`Lesson_Planners_${(planData.theme || 'theme').replace(/\s+/g,'_')}.pdf`);
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+function resetAll() {
+  generatedLessons = [];
+  planData = {};
+  document.getElementById('dataCard').style.display = 'none';
+  document.getElementById('genCard').style.display = 'none';
+  document.getElementById('exportCard').style.display = 'none';
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('fileName').textContent = '';
+  document.getElementById('extractBar').style.display = 'none';
+  document.getElementById('extractFill').style.width = '0%';
+  document.getElementById('genFill').style.width = '0%';
+  document.getElementById('btnGenerate').disabled = false;
+  fileInput.value = '';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+</script>
+</body>
+</html>
