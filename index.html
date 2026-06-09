@@ -446,63 +446,41 @@ function extractOutcomes(text) {
   const skills = ['Listening','Reading','Speaking','Writing','Mediation'];
   const outcomes = {};
 
-  // Step 1: rejoin broken lines into full sentences
-  // PDF.js splits long lines at arbitrary points
-  const rawLines = text.split('\n');
-  const rejoined = [];
-  let buf = '';
-  for (let line of rawLines) {
-    const s = line.trim();
-    if (!s) {
-      if (buf) { rejoined.push(buf); buf = ''; }
-      continue;
-    }
-    if (buf && !buf.endsWith('.') && !buf.endsWith(':')) {
-      buf += ' ' + s;
-    } else {
-      if (buf) rejoined.push(buf);
-      buf = s;
-    }
-  }
-  if (buf) rejoined.push(buf);
+  // Step 1: insert newline before every "Can " that follows a period
+  let normalized = text.replace(/\.\s*(Can\s)/g, '.\n$1');
 
-  // Step 2: for each skill, find its block and extract 'Can ...' lines
-  const fullText = rejoined.join('\n');
+  // Step 2: insert newline before skill labels that appear inline (e.g. "4. Writing:")
+  skills.forEach(skill => {
+    normalized = normalized.replace(
+      new RegExp('(\\d+\\.?\\s*)(' + skill + ':)', 'gi'),
+      '\n$1$2\n'
+    );
+  });
 
   skills.forEach((skill, i) => {
-    const nextSkill = skills[i + 1] || 'Communicative';
-    // Match block from "Skill:" up to next skill or section marker
-    const pat = new RegExp(
-      skill + ':?\\s*\\n([\\s\\S]*?)(?=\\n\\d+\\.?\\s*' + nextSkill + '|\\n' + nextSkill + '|3\\.\\s*Communicative|Made with Emergent)',
-      'i'
-    );
-    const m = fullText.match(pat);
+    const nextSkills = skills.slice(i + 1).join('|');
+    const stopPattern = nextSkills
+      ? '(?=\\n\\d+\\.?\\s*(?:' + nextSkills + ')|\\n(?:' + nextSkills + '):|3\\.\\s*Communicative|Made with Emergent)'
+      : '(?=3\\.\\s*Communicative|Made with Emergent)';
+
+    const pat = new RegExp(skill + ':?\\s*\\n([\\s\\S]*?)' + stopPattern, 'i');
+    const m = normalized.match(pat);
+
     if (m) {
       const block = m[1];
-      // Extract only lines that start with 'Can '
       const canLines = block.split('\n')
         .map(l => l.trim())
         .filter(l => /^Can\s+/i.test(l));
       outcomes[skill] = canLines.join('\n');
     } else {
-      // Fallback: search entire text for 'Can ...' near skill label
-      const fallbackPat = new RegExp(skill + '[\\s\\S]{0,50}?((?:Can\\s+[^\\n]+\\n?)+)', 'i');
-      const fb = fullText.match(fallbackPat);
-      if (fb) {
-        const canLines = fb[1].split('\n')
-          .map(l => l.trim())
-          .filter(l => /^Can\s+/i.test(l));
-        outcomes[skill] = canLines.join('\n');
-      } else {
-        outcomes[skill] = '';
-      }
+      outcomes[skill] = '';
     }
   });
 
   document.getElementById('lo_listening').value = outcomes['Listening'] || '';
-  document.getElementById('lo_reading').value = outcomes['Reading'] || '';
-  document.getElementById('lo_speaking').value = outcomes['Speaking'] || '';
-  document.getElementById('lo_writing').value = outcomes['Writing'] || '';
+  document.getElementById('lo_reading').value   = outcomes['Reading']   || '';
+  document.getElementById('lo_speaking').value  = outcomes['Speaking']  || '';
+  document.getElementById('lo_writing').value   = outcomes['Writing']   || '';
   document.getElementById('lo_mediation').value = outcomes['Mediation'] || '';
 }
 
